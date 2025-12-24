@@ -1,74 +1,64 @@
-import os
 import telebot
-from datetime import datetime
+import hashlib
+import random
 
-# Lấy token từ Environment, fallback nếu Render lỗi
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-if not BOT_TOKEN:
-    BOT_TOKEN = "8340836312:AAHC87iQUxbONjja4TlMYNLdMlW5HJQ05hU"
+BOT_TOKEN = "8340836312:AAHC87iQUxbONjja4TlMYNLdMlW5HJQ05hU"
+OWNER_NAME = "Hà Hữu Xuyên"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# Lưu tiền theo user
-user_money = {}
-
-def time_now():
-    return datetime.now().strftime("%H:%M:%S | %d/%m/%Y")
-
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=["start"])
 def start(msg):
     bot.reply_to(
         msg,
-        "🤖 BOT GHI LỜI / LỖ\n\n"
-        "📌 Lệnh sử dụng:\n"
-        "/win <tiền> ➜ thắng\n"
-        "/thua <tiền> ➜ thua\n"
-        "/tong ➜ xem tổng\n\n"
-        "VD: /win 50000"
+        f"""🤖 BOT DỰ ĐOÁN TÀI / XỈU (AI + MD5)
+
+👤 Chủ bot: {OWNER_NAME}
+
+👉 Gửi 1 chuỗi bất kỳ
+👉 Bot trả kết quả dự đoán phiên sau
+
+⚠️ Chỉ mang tính tham khảo – giải trí
+"""
     )
 
-@bot.message_handler(commands=['win'])
-def win(msg):
-    try:
-        amount = int(msg.text.split()[1])
-        uid = msg.from_user.id
-        user_money[uid] = user_money.get(uid, 0) + amount
+@bot.message_handler(func=lambda m: True)
+def predict(msg):
+    text = msg.text.strip()
 
-        bot.reply_to(
-            msg,
-            f"✅ THẮNG +{amount:,}đ\n"
-            f"💰 TỔNG: {user_money[uid]:,}đ\n"
-            f"🕒 {time_now()}"
-        )
-    except:
-        bot.reply_to(msg, "❌ Sai cú pháp\nVD: /win 50000")
+    # Tính MD5
+    md5_hash = hashlib.md5(text.encode("utf-8")).hexdigest()
 
-@bot.message_handler(commands=['thua'])
-def thua(msg):
-    try:
-        amount = int(msg.text.split()[1])
-        uid = msg.from_user.id
-        user_money[uid] = user_money.get(uid, 0) - amount
+    # Lấy 2 hex cuối
+    last_hex = md5_hash[-2:]
+    value = int(last_hex, 16)
 
-        bot.reply_to(
-            msg,
-            f"❌ THUA -{amount:,}đ\n"
-            f"💰 TỔNG: {user_money[uid]:,}đ\n"
-            f"🕒 {time_now()}"
-        )
-    except:
-        bot.reply_to(msg, "❌ Sai cú pháp\nVD: /thua 30000")
+    # Logic tài xỉu
+    if value > 127:
+        result = "🟢 TÀI"
+    else:
+        result = "🔴 XỈU"
 
-@bot.message_handler(commands=['tong'])
-def tong(msg):
-    uid = msg.from_user.id
-    total = user_money.get(uid, 0)
+    # % tin cậy (random an toàn)
+    percent = random.randint(60, 85)
 
-    bot.reply_to(
-        msg,
-        f"📊 TỔNG HIỆN TẠI: {total:,}đ\n"
-        f"🕒 {time_now()}"
-    )
+    reply = f"""
+🔐 MD5:
+`{md5_hash}`
 
-print("🤖 Bot đang chạy 24/24...")
-bot.infinity_polling()
+📊 Phân tích:
+• Hex cuối: `{last_hex}`
+• Giá trị: `{value}`
+
+🎯 Dự đoán phiên sau:
+{result}
+
+📈 Độ tin cậy:
+{percent}%
+
+© {OWNER_NAME}
+⚠️ Giải trí – không đảm bảo thắng
+"""
+    bot.reply_to(msg, reply, parse_mode="Markdown")
+
+bot.polling(none_stop=True)
